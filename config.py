@@ -53,8 +53,8 @@ class Config(NetworkConfig):
   min_edge_fidelity = 0.94
   max_edge_fidelity = 0.98
   fidelity_threshold = 0.7
-  number_of_storages = 4
-  
+  num_of_organizations = 1
+  number_of_user_pairs = 6
   num_of_paths = 1
   path_selection_scheme = "shortest"
 def get_config(FLAGS):
