@@ -1,10 +1,11 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[2]:
+# In[ ]:
 
 
 import networkx as nx
+from itertools import islice
 import matplotlib.pyplot as plt
 import random
 import time
@@ -18,7 +19,7 @@ import random
 
 
 class Network:
-    def __init__(self,config,topology_file,edge_fidelity_range,link_cost_metric):
+    def __init__(self,config,topology_file):
         self.data_dir = './data/'
         self.topology_file = topology_file
         
@@ -26,9 +27,9 @@ class Network:
         self.set_E = []
         self.each_id_pair ={}
         self.pair_id = 0
-        
+
         self.min_edge_fidelity = float(config.min_edge_fidelity)
-        self.max_edge_fidelity = float(edge_fidelity_range)
+        self.max_edge_fidelity = float(config.max_edge_fidelity)
         self.num_of_paths = int(config.num_of_paths)
         
         self.each_pair_id  ={}
@@ -58,9 +59,10 @@ class Network:
         self.each_k_weight = {}
         self.each_k_u_weight = {}
         self.max_edge_capacity = 0
-        self.load_topology(link_cost_metric)
+        self.each_link_cost_metric = "hop"
+        self.load_topology()
     
-    def load_topology(self,link_cost_metric):
+    def load_topology(self):
         self.set_E=[]
         self.each_edge_capacity={}
         self.nodes = []
@@ -86,27 +88,55 @@ class Network:
             self.each_edge_fidelity[(int(d),int(s))] = round(random_fidelity,3)
             edge_capacity = round(float(c),3)
             self.each_edge_capacity[(int(s),int(d))] = edge_capacity
+            self.each_edge_capacity[(int(d),int(s))] = edge_capacity
             if edge_capacity > self.max_edge_capacity:
                 self.max_edge_capacity = edge_capacity
+            self.g.add_edge(int(s),int(d),capacity=edge_capacity,weight=1)
+            self.g.add_edge(int(d),int(s),capacity=edge_capacity,weight=1)
+        f.close()
+        
+    def set_edge_fidelity(self,edge_fidelity_range):
+        if edge_fidelity_range<self.max_edge_fidelity:
+            self.max_edge_fidelity = edge_fidelity_range
+            
+        if edge_fidelity_range<self.min_edge_fidelity:
+            self.min_edge_fidelity = edge_fidelity_range
+            self.max_edge_fidelity = edge_fidelity_range
+        for edge in self.g.edges:
+            random_fidelity = random.uniform(self.min_edge_fidelity,self.max_edge_fidelity)
+            self.each_edge_fidelity[edge] = round(random_fidelity,3)
+            self.each_edge_fidelity[(int(edge[1]),int(edge[0]))] = round(random_fidelity,3)
+            
+    def set_link_weight(self,link_cost_metric):
+        for edge in self.g.edges:
+            edge_capacity = self.each_edge_capacity[edge]
             if link_cost_metric =="hop":
                 weight1=1
                 weight2 = 1
+                self.g[edge[0]][edge[1]]['weight']=weight1
+                self.g[edge[1]][edge[0]]['weight']= weight2
             elif link_cost_metric =="EGR":
                 weight1=1/edge_capacity
                 weight2 = 1/edge_capacity
+                self.g[edge[0]][edge[1]]['weight']=weight1
+                self.g[edge[1]][edge[0]]['weight']= weight2
             elif link_cost_metric =="EGRsquare":
                 weight1=1/(edge_capacity**2)
                 weight2 = 1/(edge_capacity**2)
+                self.g[edge[0]][edge[1]]['weight']=weight1
+                self.g[edge[1]][edge[0]]['weight']= weight2
             elif link_cost_metric =="Bruteforce":
                 weight1=1
                 weight2 = 1
-            self.g.add_edge(int(s),int(d),weight=weight1)
-            self.g.add_edge(int(d),int(s),weight=weight2)
-        f.close()
+                self.g[edge[0]][edge[1]]['weight']=1
+                self.g[edge[1]][edge[0]]['weight']= 1
+        
     def set_organizations(self):
+        self.K=[]
         for i in range(self.num_of_organizations):
             self.K.append(i)
     def set_each_organization_weight(self):
+        self.each_k_weight = {}
         for k in self.K:
             weight = random.uniform(0.1,1)
             self.each_k_weight[k] = weight
@@ -141,6 +171,7 @@ class Network:
             except:
                 self.each_k_user_pairs[k]= selected_ids
     def set_each_user_pair_weight(self):
+        self.each_k_u_weight ={}
         for k, user_pairs in self.each_k_user_pairs.items():
             for u in user_pairs:
                 weight = random.uniform(0,1)
@@ -156,10 +187,15 @@ class Network:
         for k,user_pairs_ids in self.each_k_user_pairs.items():
             for user_pair_id in user_pairs_ids:
                 user_pair = self.each_id_pair[user_pair_id]
-                shortest_paths = nx.all_shortest_paths(self.g,source=user_pair[0],target=user_pair[1], weight='weight')
+                
                 paths = []
-                for p in shortest_paths:
-                    paths.append(p)
+                for path in self.k_shortest_paths(user_pair[0], user_pair[1], self.num_of_paths,"weight"):
+                    paths.append(path)
+                #shortest_paths = nx.all_shortest_paths(self.g,source=user_pair[0],target=user_pair[1], weight='weight')
+#                 for p in shortest_paths:
+#                     paths.append(p)
+                #print("user pair %s all paths are %s in cost %s required %s"%(user_pair,len(paths),self.each_link_cost_metric,self.num_of_paths))
+                #time.sleep(5)
                 try:
                     self.each_k_u_all_paths[k][user_pair_id] = paths
                 except:
@@ -182,7 +218,12 @@ class Network:
                     self.each_k_u_all_disjoint_paths[k]={}
                     self.each_k_u_all_disjoint_paths[k][user_pair_id] = paths
         
- 
+    def k_shortest_paths(self, source, target, k, weight):
+        return list(
+            islice(nx.shortest_simple_paths(self.g, source, target, weight=weight), k)
+        )
+    
+    
     def set_paths(self):
         for k,user_pairs_ids in self.each_k_user_pairs.items():
             for user_pair_id in user_pairs_ids:
@@ -230,12 +271,18 @@ class Network:
         self.set_each_path_basic_fidelity()
         """we set the required EPR pairs to achieve each fidelity threshold"""
         self.set_required_EPR_pairs_for_each_path_each_fidelity_threshold()
+        
     def reset_pair_paths(self):
+        self.path_id = 0
+        self.path_counter_id = 0
         self.set_of_paths = {}
         self.each_k_u_paths = {}
         self.each_k_u_disjoint_paths = {}
         self.each_k_path_path_id = {}
-
+        self.each_k_u_all_paths = {}
+        self.each_k_u_all_disjoint_paths = {}
+        self.each_k_path_path_id={}
+        
     def set_each_user_pair_demands(self):
         self.each_t_each_request_demand = {}
         num_of_pairs= len(list(self.user_pairs))
@@ -265,7 +312,7 @@ class Network:
                 self.each_u_demand[0]={}
                 self.each_u_demand[0][request] = 0
     
-    def get_k_threshold(self,k):
+    def get_each_k_threshold(self,k):
         return self.each_k_fidelity_threshold[k]
     def set_each_user_weight(self):
         for time,user_pairs in self.each_t_user_pairs.items():
@@ -563,7 +610,6 @@ class Network:
 
 
 
-
 # In[ ]:
 
 
@@ -576,7 +622,7 @@ class Network:
 
 
 
-# In[10]:
+# In[ ]:
 
 
 # print("start ...")
@@ -650,7 +696,6 @@ class Network:
 
 
 
-
 # In[ ]:
 
 
@@ -673,6 +718,68 @@ class Network:
 
 
 
+
+
+# In[2]:
+
+
+# import networkx as nx
+# f = open("data/ATT", 'r')
+# g = nx.Graph()
+# all_weights = []
+# header = f.readline()
+# for line in f:
+#     line = line.strip()
+#     link = line.split('\t')
+#     i, s, d,  c = link
+#     edge_capacity = round(float(c),3)
+#     all_weights.append(1/edge_capacity)
+# f.close()
+# f = open("data/ATT", 'r')
+# g = nx.Graph()
+# counter = 1
+# header = f.readline()
+# for line in f:
+#     line = line.strip()
+#     link = line.split('\t')
+#     i, s, d,  c = link
+#     edge_capacity = round(float(c),3)
+#     edge_weight = round(1/edge_capacity,4)
+#     #edge_weight = edge_weight/min(all_weights)
+#     g.add_edge(int(s),int(d),capacity=100,weight=edge_weight)
+#     g.add_edge(int(d),int(s),capacity=100,weight=edge_weight)
+#     counter+=1
+# f.close()
+
+# shortest_paths = nx.all_shortest_paths(g,source=1,target=23, weight="weight")
+
+# shortest_simple_paths = nx.shortest_simple_paths(g, source=1,target=23, weight="weight")
+
+# paths2 = []
+# from itertools import islice
+# def k_shortest_paths(g, source, target, k, weight):
+#     return list(
+#         islice(nx.shortest_simple_paths(g, source, target, weight=weight), k)
+#     )
+# for path in k_shortest_paths(g, 1, 23, 5,"weight"):
+#     print(path)
+#     paths2.append(path)
+
+# print("Done")
+
+# # for p in shortest_simple_paths:
+# #     print("path p",p)
+# #     paths2.append(p)
+# paths = []
+# for p in shortest_paths:
+#     paths.append(p)
+# print("user pair (1,23) all shortest paths  %s %s "%(len(paths),len(paths2)))
+# print("shortest %s  "%(paths))
+# print("paths2",paths2)
+# #user pair (1,23) hop link cost all paths are 3  [[1, 0, 2, 23], [1, 9, 2, 23], [1, 11, 2, 23]]  
+# for edge in g.edges:
+#     print(edge,g[edge[0]][edge[1]]["weight"])
+    
 
 
 # In[ ]:
