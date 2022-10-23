@@ -19,7 +19,7 @@ import random
 
 
 class Network:
-    def __init__(self,config,topology_file):
+    def __init__(self,config,topology_file,edge_capacity_bound):
         self.data_dir = './data/'
         self.topology_file = topology_file
         
@@ -47,6 +47,7 @@ class Network:
         self.all_basic_fidelity_target_thresholds = []
         self.path_counter_id = 0
         self.pair_id = 0
+        self.q_value = 1
         self.each_u_weight={}
         self.each_path_legth = {}
         self.K= []
@@ -60,9 +61,9 @@ class Network:
         self.each_k_u_weight = {}
         self.max_edge_capacity = 0
         self.each_link_cost_metric = "hop"
-        self.load_topology()
+        self.load_topology(edge_capacity_bound)
     
-    def load_topology(self):
+    def load_topology(self,each_edge_capacity_upper_bound):
         self.set_E=[]
         self.each_edge_capacity={}
         self.nodes = []
@@ -83,25 +84,24 @@ class Network:
             if int(d) not in self.nodes:
                 self.nodes.append(int(d))
             self.set_E.append((int(s),int(d)))
-            random_fidelity = random.uniform(self.min_edge_fidelity,self.max_edge_fidelity)
-            self.each_edge_fidelity[(int(s),int(d))] = round(random_fidelity,3)
-            self.each_edge_fidelity[(int(d),int(s))] = round(random_fidelity,3)
-            edge_capacity = round(float(c),3)
+#             random_fidelity = random.uniform(self.min_edge_fidelity,self.max_edge_fidelity)
+#             self.each_edge_fidelity[(int(s),int(d))] = round(random_fidelity,3)
+#             self.each_edge_fidelity[(int(d),int(s))] = round(random_fidelity,3)
+#             edge_capacity = round(float(c),3)
+            
+            
+            self.max_edge_capacity = each_edge_capacity_upper_bound
+            edge_capacity  = random.uniform(1,each_edge_capacity_upper_bound)
             self.each_edge_capacity[(int(s),int(d))] = edge_capacity
             self.each_edge_capacity[(int(d),int(s))] = edge_capacity
-            if edge_capacity > self.max_edge_capacity:
-                self.max_edge_capacity = edge_capacity
             self.g.add_edge(int(s),int(d),capacity=edge_capacity,weight=1)
             self.g.add_edge(int(d),int(s),capacity=edge_capacity,weight=1)
         f.close()
         
     def set_edge_fidelity(self,edge_fidelity_range):
-        if edge_fidelity_range<self.max_edge_fidelity:
-            self.max_edge_fidelity = edge_fidelity_range
-            
-        if edge_fidelity_range<self.min_edge_fidelity:
-            self.min_edge_fidelity = edge_fidelity_range
-            self.max_edge_fidelity = edge_fidelity_range
+        
+        self.max_edge_fidelity = edge_fidelity_range
+        self.min_edge_fidelity = edge_fidelity_range
         for edge in self.g.edges:
             random_fidelity = random.uniform(self.min_edge_fidelity,self.max_edge_fidelity)
             self.each_edge_fidelity[edge] = round(random_fidelity,3)
@@ -610,6 +610,7 @@ class Network:
 
 
 
+
 # In[ ]:
 
 
@@ -689,6 +690,7 @@ class Network:
 
 
 # In[ ]:
+
 
 
 
