@@ -7,24 +7,17 @@ import inspect
 import numpy as np
 import tensorflow as tf
 
-class Network():
-    def __init__(self, config, input_dims, action_dim, max_moves,commitment_window,look_ahead_window,training_epoch, master=True):
+class Model():
+    def __init__(self, config, input_dims, action_dim, max_moves, master=True):
         self.input_dims = input_dims
         self.action_dim = action_dim
-        print('these are input dim',self.input_dims)
-        print('these are action dim',self.action_dim)
-        import pdb
-        #pdb.set_trace()
         self.max_moves = max_moves
         self.model_name = config.version+'-'\
                             +config.project_name+'_'\
                             +config.method+'_'\
                             +config.model_type+'_'\
                             +config.topology_file+'_'\
-                            +config.traffic_file+'_'\
-                            +str(commitment_window)+'_'\
-                            +str(look_ahead_window)+'_'\
-                            +str(training_epoch)
+                            +config.traffic_file
 
         if config.method == 'actor_critic':
             self.create_actor_critic_model(config)
@@ -60,27 +53,7 @@ class Network():
             self.writer = tf.compat.v2.summary.create_file_writer('./logs/%s' % self.model_name)
             #self.save_hyperparams(config)
             self.model.summary()
-    def update_chkpt_saving_dir(self,config,commitment_window,look_ahead_window,epoch_number):
-        print("we are uodating the model name from ",self.model_name)
-        print("check point dir is ",self.ckpt_dir)
-        self.model_name = config.version+'-'\
-                            +config.project_name+'_'\
-                            +config.method+'_'\
-                            +config.model_type+'_'\
-                            +config.topology_file+'_'\
-                            +config.traffic_file+'_'\
-                            +str(commitment_window)+'_'\
-                            +str(look_ahead_window)+'_'\
-                            +str(epoch_number)
-        print("to",self.model_name)
-        self.ckpt_dir = './tf_ckpts/'+self.model_name
-        print("check point dir now is ",self.ckpt_dir)
-        
-        self.manager = tf.train.CheckpointManager(self.ckpt, self.ckpt_dir, max_to_keep=config.max_to_keep)
-        self.writer = tf.compat.v2.summary.create_file_writer('./logs/%s' % self.model_name)
-        #self.save_hyperparams(config)
-        self.model.summary()
-        
+
     def create_actor_critic_model(self, config):
         tf.keras.backend.set_floatx('float32')
         inputs = tf.keras.Input(shape=(self.input_dims[0], self.input_dims[1], self.input_dims[2]))
@@ -93,10 +66,7 @@ class Network():
         Dense1_1 = tf.keras.layers.Dense(config.Dense_out)
         x_1 = Dense1_1(x_1)
         x_1 = tf.keras.layers.LeakyReLU()(x_1)
-        #print('self.action_dim',self.action_dim)
         Dense2_1 = tf.keras.layers.Dense(self.action_dim)
-        import pdb
-        #pdb.set_trace()
         logits = Dense2_1(x_1)
         #Logit clipping
         if config.logit_clipping > 0:
@@ -142,16 +112,8 @@ class Network():
         return value_loss, advantages
 
     def policy_loss_fn(self, logits, actions, advantages, entropy_weight=0.01, log_epsilon=1e-12):
-        #print('actions before reshape',actions)
         actions = tf.reshape(actions, [-1, self.max_moves, self.action_dim])                            #actions shape = [batch_size, max_moves, action_dim]
-        #print('logits',logits)
         policy = tf.nn.softmax(logits)                                                                  #policy shape = [batch_size, action_dim]
-        #print(policy.shape[0] , actions.shape[0] , advantages.shape[0] , actions.shape[0])
-        #print('this is policy',policy)
-        #print('this is action',actions)
-        #print(self.max_moves)
-        import pdb
-        #pdb.set_trace()
         assert policy.shape[0] == actions.shape[0] and advantages.shape[0] == actions.shape[0]                  
         entropy = tf.nn.softmax_cross_entropy_with_logits(labels=policy, logits=logits)                 #entropy shape = [batch_size,]
         entropy = tf.expand_dims(entropy, -1)                                                           #[batch_size, 1]
@@ -220,8 +182,8 @@ class Network():
             checkpoint = self.manager.latest_checkpoint
         else:
             checkpoint = self.ckpt_dir+'/'+checkpoint
-            
-
+        
+        
         self.ckpt.restore(checkpoint).expect_partial()
         if checkpoint:
             step = int(self.ckpt.step)
@@ -229,10 +191,10 @@ class Network():
         else:
             step = 0
             print("Initializing from scratch.")
-
+        
         return step
 
-    def save_ckpt(self,_print=False):
+    def save_ckpt(self, _print=False):
         save_path = self.manager.save()
         if _print:
             print("Saved checkpoint for step {}: {}".format(int(self.ckpt.step), save_path))
@@ -244,7 +206,7 @@ class Network():
             self.writer.flush()
 
     def save_hyperparams(self, config):
-        fp = self.ckpt_dir +'/hyper_parameters'
+        fp = self.ckpt_dir + '/hyper_parameters'
 
         hparams = {k:v for k, v in inspect.getmembers(config)
             if not k.startswith('__') and not callable(k)}
