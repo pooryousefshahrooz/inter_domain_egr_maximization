@@ -5,7 +5,6 @@
 
 
 import csv
-from network import Network
 import os
 import sys
 from docplex.mp.progress import *
@@ -27,6 +26,7 @@ class Solver:
     def CPLEX_maximizing_EGR(self,wk_idx,network):
 #         for k in network.each_wk_organizations[wk_idx]:
 #             for u in network.each_wk_each_k_user_pair_ids[wk_idx][k]:
+#                 print("we are k %s u %s "%(k,u))
 #                 for p in network.each_wk_each_k_each_user_pair_id_paths[wk_idx][k][u]:
 #                     print("wk %s k %s w %s user %s w %s path %s"%(wk_idx,k,network.each_wk_k_weight[wk_idx][k],u,network.each_wk_k_u_weight[wk_idx][k][u],p))
 
