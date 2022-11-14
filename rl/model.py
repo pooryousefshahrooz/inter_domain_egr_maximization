@@ -48,7 +48,7 @@ class Model():
                 self.ckpt = tf.train.Checkpoint(step=tf.Variable(1), actor_optimizer=self.actor_optimizer, critic_optimizer=self.critic_optimizer, model=self.model)
             elif config.method == 'pure_policy':
                 self.ckpt = tf.train.Checkpoint(step=tf.Variable(1), optimizer=self.optimizer, model=self.model)
-            self.ckpt_dir = './tf_ckpts/'+self.model_name
+            self.ckpt_dir = './'+config.tf_ckpts+'/'+self.model_name
             self.manager = tf.train.CheckpointManager(self.ckpt, self.ckpt_dir, max_to_keep=config.max_to_keep)
             self.writer = tf.compat.v2.summary.create_file_writer('./logs/%s' % self.model_name)
             #self.save_hyperparams(config)

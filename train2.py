@@ -20,8 +20,6 @@ from network import Network
 from config import get_config
 from solver import Solver
 import time
-import os
-import shutil
 FLAGS = flags.FLAGS
 flags.DEFINE_integer('num_agents',1, 'number of agents')
 flags.DEFINE_string('baseline', 'avg', 'avg: use average reward as baseline, best: best reward as baseline')
@@ -248,10 +246,6 @@ def main(_):
                         # we get all the paths for all workloads
                         network.num_of_paths = num_paths
                         network.get_path_info()
-                        
-                        """we remove all the checkpoints for not using trained model of previous #paths setup"""
-                        shutil.rmtree("tf_ckpts")
-                        time.sleep(30)
                         """we first find the candidate paths and use it for action dimention"""
                         # we se the state dimention and action dimention
                         game = CFRRL_Game(config,network)

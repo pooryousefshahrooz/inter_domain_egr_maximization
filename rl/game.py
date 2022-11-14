@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[8]:
+# In[ ]:
 
 
 from __future__ import absolute_import
@@ -177,7 +177,20 @@ class CFRRL_Game():
                     if path_id in actions:
                         having_at_least_one_path_flag = True
                         try:
-                            network.each_wk_each_k_each_user_pair_id_paths[wk_idx][k][user_pair].append(path_id)
+                            if len(network.each_wk_each_k_each_user_pair_id_paths[wk_idx][k][user_pair])<network.num_of_paths:
+                                try:
+                                    network.each_wk_each_k_each_user_pair_id_paths[wk_idx][k][user_pair].append(path_id)
+                                except:
+                                    try:
+                                        network.each_wk_each_k_each_user_pair_id_paths[wk_idx][k][user_pair] = [path_id]
+                                    except:
+                                        try:
+                                            network.each_wk_each_k_each_user_pair_id_paths[wk_idx][k]={}
+                                            network.each_wk_each_k_each_user_pair_id_paths[wk_idx][k][user_pair] = [path_id]
+                                        except:
+                                            network.each_wk_each_k_each_user_pair_id_paths[wk_idx]={}
+                                            network.each_wk_each_k_each_user_pair_id_paths[wk_idx][k]={}
+                                            network.each_wk_each_k_each_user_pair_id_paths[wk_idx][k][user_pair] = [path_id]
                         except:
                             try:
                                 network.each_wk_each_k_each_user_pair_id_paths[wk_idx][k][user_pair] = [path_id]
@@ -189,6 +202,8 @@ class CFRRL_Game():
                                     network.each_wk_each_k_each_user_pair_id_paths[wk_idx]={}
                                     network.each_wk_each_k_each_user_pair_id_paths[wk_idx][k]={}
                                     network.each_wk_each_k_each_user_pair_id_paths[wk_idx][k][user_pair] = [path_id]
+
+                
                 if not having_at_least_one_path_flag:
                     try:
                         network.each_wk_each_k_each_user_pair_id_paths[wk_idx][k][user_pair] = []
@@ -210,7 +225,7 @@ class CFRRL_Game():
         egr = solver.CPLEX_maximizing_EGR(wk_idx,network)
         return egr
     def reward(self, wk_idx,network, actions,solver):
-#         print("compuiting reward.....")
+        #print("compuiting reward.....")
         chosen_paths = []
         for item in actions:
             chosen_paths.append(item)
@@ -232,22 +247,22 @@ class CFRRL_Game():
             self.each_wk_action_reward[wk_idx] = {}
             self.each_wk_action_reward[wk_idx][tuple(chosen_paths)] = rl_egr
 
-#         print("rl gave us egr ",rl_egr)
+        #print("rl gave us egr ",rl_egr)
 #         for u,paths in network.each_wk_each_k_each_user_pair_id_paths[wk_idx][0].items():
 #             print("for wk %s k %s u %s paths %s"%(wk_idx,0,u,paths))
         
-        try:
-            if wk_idx in self.each_wk_optimal_egr:
-                optimal_egr = self.each_wk_optimal_egr[wk_idx]
-                optimal_egr_paths = self.each_wk_optimal_egr_paths[wk_idx]
-            else:
-                optimal_egr,optimal_paths = self.compute_optimal_egr(wk_idx,network,solver)
-                self.each_wk_optimal_egr[wk_idx]= optimal_egr
-                self.each_wk_optimal_egr_paths[wk_idx] =optimal_paths
-        except:
-            optimal_egr,optimal_paths = self.compute_optimal_egr(wk_idx,network,solver)
-            self.each_wk_optimal_egr[wk_idx]= optimal_egr
-            self.each_wk_optimal_egr_paths[wk_idx] =optimal_paths
+#         try:
+#             if wk_idx in self.each_wk_optimal_egr:
+#                 optimal_egr = self.each_wk_optimal_egr[wk_idx]
+#                 optimal_egr_paths = self.each_wk_optimal_egr_paths[wk_idx]
+#             else:
+#                 optimal_egr,optimal_paths = self.compute_optimal_egr(wk_idx,network,solver)
+#                 self.each_wk_optimal_egr[wk_idx]= optimal_egr
+#                 self.each_wk_optimal_egr_paths[wk_idx] =optimal_paths
+#         except:
+#             optimal_egr,optimal_paths = self.compute_optimal_egr(wk_idx,network,solver)
+#             self.each_wk_optimal_egr[wk_idx]= optimal_egr
+#             self.each_wk_optimal_egr_paths[wk_idx] =optimal_paths
 #         if optimal_egr==0 or rl_egr>optimal_egr:
 #             for k in network.each_wk_organizations[wk_idx]:
 #                 for u in network.each_wk_each_k_user_pair_ids[wk_idx][k]:
@@ -255,17 +270,21 @@ class CFRRL_Game():
 #                     for p in network.each_wk_each_k_each_user_pair_id_paths[wk_idx][k][u]:
 #                         print("wk %s k %s w %s user %s w %s path %s edges %s"%(wk_idx,k,network.each_wk_k_weight[wk_idx][k],u,network.each_wk_k_u_weight[wk_idx][k][u],p,network.set_of_paths[p]))
 #             pdb.set_trace()
-        reward = rl_egr
+        optimal_egr = 400
+        if optimal_egr>0:
+            reward = rl_egr/optimal_egr
+        else:
+            reward =0
         #else:
             #reward=0
         
-        #print("workload %s is rl_egr %s optimal egr %s reward %s "%(wk_idx,rl_egr,optimal_egr,reward))
+        #print("workload %s is RL %s optimal %s reward %s "%(wk_idx,rl_egr,optimal_egr,reward))
 #         if reward >1:
 #             print("actions are  %s egr is %s"%(actions,rl_egr))
 #             print("actions of optimal are %s egr is %s "%(optimal_egr_paths,optimal_egr))
 #             #time.sleep(10)
             #pdb.set_trace()
-        
+        #print("returning reward ",reward)
         return reward
     
     def find_combos(self,arr,k):
@@ -281,20 +300,23 @@ class CFRRL_Game():
         all_possible_actions = list(itertools.product(*all_user_paths))
         return all_possible_actions
     def compute_optimal_egr(self,wk_idx,network,solver):
+        #print("computing optimal")
         max_egr = 0
         network.each_wk_each_k_each_user_pair_id_paths = {}
         each_user_pair_paths = {}
         for k,user_pair_ids in network.each_wk_each_k_user_pair_ids[wk_idx].items():
             for user_pair in user_pair_ids:
                 each_user_pair_paths[user_pair] = network.each_pair_paths[user_pair]
-                
+                #print("we have %s for user pair %s "%(network.each_pair_paths[user_pair],user_pair))
         all_possible_actions = self.get_all_possible_actions(each_user_pair_paths,network.num_of_paths)
+        #print("we have %s possible solutions in the optimal brute foce"%(len(all_possible_actions)))
         for action in all_possible_actions:
             actions = []
             for item in action:
                 for i in item:
                     actions.append(i)
             egr = self.compute_egr(actions,wk_idx,network,solver)
+            #print("action %s in the process of optimal search gave us %s "%(actions,egr))
             if egr >max_egr:
                 max_egr = egr
                 optimal_paths = actions
@@ -337,6 +359,13 @@ class CFRRL_Game():
         egr = 0
         if scheme =="RL":
             egr = self.compute_egr(actions,wk_idx,network,solver)
+            optimal_egr,optimal_paths = self.compute_optimal_egr(wk_idx,network,solver)
+            if egr>optimal_egr:
+                print("for RL scheme %s we have these paths %s # %s and egr is %s "%(scheme,actions,len(actions),egr))
+                print("optimal_egr is %s with paths %s "%(optimal_egr,optimal_paths))
+                time.sleep(5)
+                import pdb
+                pdb.set_trace()
         elif scheme  in ["hop","EGR","EGRsquare"]:
             actions = []
             for k in network.each_wk_organizations[wk_idx]:
@@ -344,7 +373,10 @@ class CFRRL_Game():
                     paths = network.each_scheme_each_user_pair_paths[scheme][user_pair_id]
                     for path in paths:
                         actions.append(path)
+            
             egr = self.compute_egr(actions,wk_idx,network,solver)
+#             print("for scheme %s we have these paths %s # %s and egr is %s "%(scheme,actions,len(actions),egr))
+#             time.sleep(4)
         if scheme =="Optimal":
             egr,_ = self.compute_optimal_egr(wk_idx,network,solver)
 #             if egr==0:
@@ -353,13 +385,15 @@ class CFRRL_Game():
 #                         for p in network.each_wk_each_k_each_user_pair_id_paths[wk_idx][k][u]:
 #                             print("wk %s k %s w %s user %s w %s path %s edges %s"%(wk_idx,k,network.each_wk_k_weight[wk_idx][k],u,network.each_wk_k_u_weight[wk_idx][k][u],p,network.set_of_paths[p]))
 #                 pdb.set_trace()
+            #print("for scheme %s we have egr is %s "%(scheme,egr))
+#         time.sleep(4)
         return egr    
         
                 
                 
 
 
-# In[4]:
+# In[ ]:
 
 
 # import numpy as np
@@ -382,12 +416,12 @@ class CFRRL_Game():
 
 
 
-# In[6]:
+# In[ ]:
 
 
-# # wk_idx 9 one set of paths [22, 70, 119] for user pair 24 
-# # wk_idx 9 one set of paths [23, 71, 120] for user pair 25 
-# # wk_idx 9 one set of paths [] for user pair 26 
+# # # wk_idx 9 one set of paths [22, 70, 119] for user pair 24 
+# # # wk_idx 9 one set of paths [23, 71, 120] for user pair 25 
+# # # wk_idx 9 one set of paths [] for user pair 26 
 # import itertools
 # from itertools import combinations
 # def find_combos(arr,k):
@@ -396,18 +430,168 @@ class CFRRL_Game():
 # def get_all_possible_actions(each_user_paths,k):
 #     all_user_paths = []
 #     for user,paths in each_user_paths.items():
+#         if paths:
+#             for i in range(1,)
+#             possible_actions =  itertools.combinations(paths, 2)
+#             for action in possible_actions:
+#                 all_possible_actions.append(action)
+        
 #         paths = find_combos(paths,k)
 #         if paths:
 #             all_user_paths.append(paths)
 #     print("all_user_paths",all_user_paths)
-#     all_possible_actions = list(itertools.product(*all_user_paths))
+#     possible_actions = list(itertools.product(*all_user_paths))
+#     all_possible_actions = []
+#     for action in possible_actions:
+#         all_possible_actions.append(action)
+#     for user,paths in each_user_paths.items():
+#         if paths: 
+#             possible_actions =  itertools.combinations(paths, 2)
+#             for action in possible_actions:
+#                 all_possible_actions.append(action)
 #     return all_possible_actions
 # k=1
-# each_user_paths = {24:[22, 70, 119],25:[23, 71, 120],26:[]}
+# each_user_paths = {24:[22, 70, 119,(22,70)],25:[23, 71, 120],26:[]}
 # all_possible_actions = get_all_possible_actions(each_user_paths,k)
 # # print("all_possible_actions",all_possible_actions)
 # for actions in all_possible_actions:
 #     print("one possible action ",actions)
+
+
+# In[ ]:
+
+
+
+
+
+# In[47]:
+
+
+def select_random_user_pairs(num_nodes,user_population):
+    each_t_user_pairs = {}
+    each_user_each_t_weight = {}
+    candidate_user_pairs = []
+    
+    nodes = []
+    import random
+    for i in range(num_nodes):
+        nodes.append(i)
+    while(len(candidate_user_pairs)<user_population):
+        for src in nodes:
+            for dst in nodes:
+                if src!=dst:
+                    if random.uniform(0, 1)>0.8:
+                        if (src,dst) not in candidate_user_pairs and (dst,src) not in candidate_user_pairs:
+                            if len(candidate_user_pairs)<user_population:
+                                candidate_user_pairs.append((src,dst))
+    return candidate_user_pairs
+def get_user_pairs(candidate_user_pairs):
+    import random
+    selected_user_pairs = []
+    number_of_user_pairs = 6
+    while(len(selected_user_pairs)<number_of_user_pairs):
+        user_pair = candidate_user_pairs[random.randint(0,len(candidate_user_pairs)-1)]
+        if user_pair not in selected_user_pairs:
+            selected_user_pairs.append(user_pair)
+
+    return selected_user_pairs
+def generate_work_load(work_loads,num_nodes,user_population,percentage_of_workload_for_testing,work_load_file_name):
+    pairs_in_order = []
+    
+    #f = open("data/ATT_original", 'r')
+    traffic_matrices = []
+    work_load_counter = 0
+    counter = 0
+#     for line in f:
+#         pairs_in_order = []
+#         volumes = line.strip().split(' ')
+#         volumes = line.strip().split(' ')
+#         total_volume_cnt = len(volumes)
+        
+#         for v in range(total_volume_cnt):
+#             i = int(v/num_nodes)
+#             j = v%num_nodes
+#             if counter <10:
+#                 print("total_volume_cnt, pairs in order are ",total_volume_cnt,(i,j))
+    for i in range(num_nodes):
+        for j in range(num_nodes):
+            if (i,j) not in pairs_in_order:
+                pairs_in_order.append((i,j))
+       
+        
+    print("done")
+    candidate_user_pairs = select_random_user_pairs(num_nodes,user_population)
+    print("candidate_user_pairs",candidate_user_pairs)
+    used_candidate_user_pairs = []
+    for work_load in range(work_loads):
+        print(" workload %s done from %s "%(work_load,work_loads))
+        selected_user_pairs =get_user_pairs(candidate_user_pairs)
+        for pair in selected_user_pairs:
+            if pair not in used_candidate_user_pairs:
+                used_candidate_user_pairs.append(pair)
+        line_string = ""
+        print("selected_user_pairs",selected_user_pairs)
+        for user_pair in pairs_in_order:
+            if user_pair in selected_user_pairs:
+                weight = 1
+            else:
+                weight = 0
+            if line_string:
+                line_string = line_string+" "+str(weight)
+            else:
+                line_string = str(weight)
+        with open(work_load_file_name, 'a') as file: 
+            file.write(line_string+"\n")
+    used_in_testing_pairs = []
+    adding_to_testing_file_flag=True
+    candidate_user_pairs = []
+    while(adding_to_testing_file_flag):
+        work_load = 0
+        
+        while(work_load < int(percentage_of_workload_for_testing/100*work_loads) and len(used_in_testing_pairs)!= len(used_candidate_user_pairs)):
+            print(" workload %s done from %s "%(work_load,work_loads))
+            for pair in used_candidate_user_pairs:
+                if pair not in used_in_testing_pairs:
+                      candidate_user_pairs.append(pair)
+
+            selected_user_pairs =get_user_pairs(candidate_user_pairs)
+            for pair in selected_user_pairs:
+                if pair not in used_in_testing_pairs:
+                    used_in_testing_pairs.append(pair)
+            line_string = ""
+            print("selected_user_pairs",selected_user_pairs)
+            for user_pair in pairs_in_order:
+                if user_pair in selected_user_pairs:
+                    weight = 1
+                else:
+                    weight = 0
+                if line_string:
+                    line_string = line_string+" "+str(weight)
+                else:
+                    line_string = str(weight)
+
+            with open(work_load_file_name+"2", 'a') as file: 
+                file.write(line_string+"\n")
+        if len(used_in_testing_pairs)== len(used_candidate_user_pairs):
+            adding_to_testing_file_flag=False
+
+
+# In[51]:
+
+
+# work_loads =500
+# num_of_nodes = 25
+# user_population=20
+# percentage_of_workload_for_testing = 20
+# work_load_file_name='data/ATTWK'
+# generate_work_load(work_loads,num_of_nodes,user_population,percentage_of_workload_for_testing,work_load_file_name)
+
+
+
+# In[41]:
+
+
+print(20/100*100)
 
 
 # In[ ]:

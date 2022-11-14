@@ -136,14 +136,16 @@ def central_agent(config, game, model_weights_queues, experience_queues):
                     assert np.any(np.isnan(gradients[g])) == False, (s_batch, a_batch, r_batch)
             
             if step % config.save_step == config.save_step - 1:
+                if step <100:
+                    time.sleep(60*60)
                 model.save_ckpt(_print=True)
                 
                 #log training information
-                learning_rate = model.lr_schedule(network.optimizer.iterations.numpy()).numpy()
+                learning_rate = model.lr_schedule(model.optimizer.iterations.numpy()).numpy()
                 avg_reward = np.mean(r_batch)
                 avg_advantage = np.mean(ad_batch)
                 avg_entropy = np.mean(entropy)
-                network.inject_summaries({
+                model.inject_summaries({
                     'learning rate': learning_rate,
                     'avg reward': avg_reward,
                     'avg advantage': avg_advantage,
@@ -174,12 +176,15 @@ def agent(agent_id, config, game,network, tm_subset, model_weights_queue, experi
         tm_idx = tm_subset[idx]
         #state
         state = game.get_state(tm_idx)
+        #print("got the state")
         s_batch.append(state)
         #action
         if config.method == 'actor_critic':    
             policy = model.actor_predict(np.expand_dims(state, 0)).numpy()[0]
         elif config.method == 'pure_policy':
             policy = model.policy_predict(np.expand_dims(state, 0)).numpy()[0]
+        #print("np.count_nonzero(policy) >= game.max_moves, (policy, state)",np.count_nonzero(policy) , game.max_moves)
+        #print("(policy, state)",(policy, state))
         assert np.count_nonzero(policy) >= game.max_moves, (policy, state)
         actions = random_state.choice(game.action_dim, game.max_moves, p=policy, replace=False)
         for a in actions:
@@ -187,6 +192,7 @@ def agent(agent_id, config, game,network, tm_subset, model_weights_queue, experi
 
         #reward
         reward = game.reward(tm_idx,network,actions,solver)
+        #print("reward is ",reward)
         r_batch.append(reward)
        
         if config.method == 'pure_policy':
@@ -235,7 +241,7 @@ def main(_):
     config = get_config(FLAGS) or FLAGS
     
     
-    for num_paths in range(1,int(config.num_of_paths)+1):
+    for num_paths in range(int(config.min_num_of_paths),int(config.num_of_paths)+1):
         for network_topology in config.topology_file:
             for edge_capacity_bound in config.edge_capacity_bounds:
                 network = Network(config,edge_capacity_bound,False)
@@ -250,8 +256,10 @@ def main(_):
                         network.get_path_info()
                         
                         """we remove all the checkpoints for not using trained model of previous #paths setup"""
-                        shutil.rmtree("tf_ckpts")
-                        time.sleep(30)
+                        try:
+                            shutil.rmtree(config.tf_ckpts)
+                        except:
+                            pass
                         """we first find the candidate paths and use it for action dimention"""
                         # we se the state dimention and action dimention
                         game = CFRRL_Game(config,network)
